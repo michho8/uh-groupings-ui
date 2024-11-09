@@ -262,6 +262,7 @@
             return new Promise((resolve) => groupingsService.getGroupingSyncDest(groupPath, (res) => {
                 $scope.syncDestArray = res.syncDestinations;
                 resolve();
+                $scope.initSyncStatuses();
             }, (res) => {
                 $scope.resStatus = res.status;
                 resolve();
@@ -1655,6 +1656,7 @@
         };
 
         // Call this initialization function when the controller loads or data changes
+        // You should call this after you get data from API, not when you load the controller.
         $scope.initPreferenceStatuses();
 
         /**
@@ -1723,11 +1725,18 @@
 
 
         // Function to check if any checkbox is selected
+        // The state of the "submit" button shouldn't be dependent on the states of the checkboxes.
+        // Because some destinations are already enabled (checkboxes checked).
+        // The state should depend on whether the syncDest's state was changed or not by the user.
         $scope.anyCheckboxChecked = (syncDestArray) => {
 
             return syncDestArray.some((syncDest) => syncDest.synced);
 
         };
+
+        $scope.anySyncDestsChanged = () => {
+            return $scope.syncDestArray.some((syncDest) => syncDest.initialSynced !== syncDest.synced)
+        }
 
 
 
@@ -1739,7 +1748,7 @@
         };
 
         // Call this initialization function when the controller loads or data changes
-        $scope.initSyncStatuses();
+        // $scope.initSyncStatuses();
 
         // Function that runs when the submit button is clicked
         $scope.submitSelectedDestinations = () => {
@@ -1751,7 +1760,7 @@
 
             // Build the modal content only for changed destinations
             changedDestinations.forEach(syncDest => {
-                modalContent += syncDest.description + "\n";
+                modalContent += `${syncDest.synced ? '(ENABLE)' : '(DISABLE)'} ${syncDest.description} \n`;
             });
 
             if (modalContent) {
@@ -1765,7 +1774,7 @@
                     ariaLabelledBy: "sync-dest-modal",
                     controller: "SyncDestModalController",
                     resolve: {
-                        isSynced: () => true,
+                        isSingular: () => changedDestinations.length === 1,
                         syncDestDescription: () => modalContent,
                     },
                 });
@@ -1990,9 +1999,9 @@
         };
     }
 
-    function SyncDestModalController($scope, $uibModalInstance, isSynced, syncDestDescription, Message) {
+    function SyncDestModalController($scope, $uibModalInstance, isSingular, syncDestDescription, Message) {
         $scope.syncDestDescription = syncDestDescription;
-        $scope.syncDestConfirmationMessage = Message.SyncDestModal.confirmationMessage(isSynced);
+        $scope.syncDestConfirmationMessage = Message.SyncDestModal.confirmationMessage(isSingular);
 
         /**
          * Proceed with the syncDest confirmation
